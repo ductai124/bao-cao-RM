@@ -242,6 +242,158 @@ wget http://nginx.org/download/nginx-1.21.4.tar.gz
 
 tar -xvzf nginx-1.21.4.tar.gz
 ```
+* Cài đặt libmodsecurity3 cho ModSecurity
+```php
+#Cài đặt git
+dnf install git -y
 
+#Clone lại mã nguồn
+git clone --depth 1 -b v3/master --single-branch https://github.com/SpiderLabs/ModSecurity /usr/local/src/ModSecurity/
+
+cd /usr/local/src/ModSecurity/
+
+#Cài đặt các phụ thuộc và module con
+
+dnf install gcc-c++ flex bison yajl curl-devel zlib-devel pcre-devel autoconf automake git curl make libxml2-devel pkgconfig libtool httpd-devel redhat-rpm-config wget openssl openssl-devel nano
+
+dnf --enablerepo=powertools install doxygen yajl-devel
+
+dnf --enablerepo=remi install GeoIP-devel
+
+git submodule init
+
+git submodule update
+
+#Xây dựng môi trường chạy cấu hình và cài đặt
+./build.sh
+
+./configure
+
+make
+
+make install
+```
+* Cài đặt ModSecurity-nginx Connector
+```php
+
+git clone --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git /usr/local/src/ModSecurity-nginx/
+
+cd /usr/local/src/nginx/nginx-1.21.4
+
+./configure --with-compat --add-dynamic-module=/usr/local/src/ModSecurity-nginx
+
+make modules
+
+cp objs/ngx_http_modsecurity_module.so /usr/lib64/nginx/modules/
+```
+* Tải và cấu hình ModSecurity-nginx Connector với nginx
+```php
+vi /etc/nginx/nginx.conf
+
+#Thêm vào đầu file
+load_module modules/ngx_http_modsecurity_module.so;
+
+#Thêm vào thẻ http{} đoạn code
+modsecurity on;
+modsecurity_rules_file /etc/nginx/modsec/modsec-config.conf;
+
+#Tạo thư mục mới
+
+mkdir -p /etc/nginx/modsec/
+
+#Di chuyên file cấu hình của modsecurity đến thư mục sau
+
+cp /usr/local/src/ModSecurity/modsecurity.conf-recommended /etc/nginx/modsec/modsecurity.conf
+
+#Tiến hành chỉnh sửa file sau
+
+/etc/nginx/modsec/modsecurity.conf
+
+#Tại dòng 7
+SecRuleEngine On
+
+#Tại dòng 224
+SecAuditLogParts ABCEFHJKZ
+
+#Tạo tệp sau và thêm đoạn code vào
+
+/etc/nginx/modsec/modsec-config.conf
+
+#Thêm vào đoạn code
+Include /etc/nginx/modsec/modsecurity.conf
+
+#Cuối cùng là sao chép file sau
+cp /usr/local/src/ModSecurity/unicode.mapping /etc/nginx/modsec/
+
+#Kiểm tra dịch vụ bằng câu lệnh
+nginx -t
+
+#Sau đó restart nginx
+systemctl restart nginx
+
+```
+
+* Cài đặt OWASP CRS 3.3
+```php
+#Tải file về bằng câu lệnh
+wget https://github.com/coreruleset/coreruleset/archive/refs/heads/v3.3/master.zip
+
+#Cài đăt giải nén file tải về vào modsec
+unzip /etc/nginx/master.zip -d /etc/nginx/modsec
+
+#Tạo 1 bản sao lưu
+cp /etc/nginx/modsec/coreruleset-3.3-master/crs-setup.conf.example /etc/nginx/modsec/coreruleset-3.3-master/crs-setup.conf
+
+#Mở file sau lên và thêm vào nhưng dòng code sau để bật các quy tắc
+Vi /etc/nginx/modsec/modsec-config.conf
+
+#Thêm vào
+
+Include /etc/nginx/modsec/coreruleset-3.3-master/crs-setup.conf
+Include /etc/nginx/modsec/coreruleset-3.3-master/rules/*.conf*
+
+
+```
+* Kiểm tra và khởi động lại nginx
+
+>nginx -t
+
+>systemctl restart nginx
+
+* Sửa lại nginx.conf
+```php
+vi /etc/nginx/nginx.conf
+
+#Thêm vào thẻ http
+
+server {
+        listen       80 default_server;
+        listen       [::]:80 default_server;
+        server_name  www.srv.world;
+        root         /usr/share/nginx/html;
+
+        
+        include /etc/nginx/default.d/*.conf;
+
+        location / {
+        }
+
+        error_page 404 /404.html;
+            location = /40x.html {
+        }
+
+        error_page 500 502 503 504 /50x.html;
+            location = /50x.html {
+        }
+    }
+```
+* Tùy chỉnh modscurity
+```php
+#Truy cập thư mục sau để tùy chỉnh các modsecurity
+vi /etc/nginx/modsec/coreruleset-3.3-master/crs-setup.conf/
+
+#Đường dẫn chứa các biến của rules của từng protection
+/etc/nginx/modsec/coreruleset-3.3-master/rules/
+```
 
 
