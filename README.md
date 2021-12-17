@@ -137,44 +137,58 @@ firewall-cmd --add-service=http
 
 firewall-cmd --runtime-to-permanent
 ```
-* ***lưu ý***:Kiểm tra lại file nginx.conf
+* Cấu hình lại nginx
 ```php
-# Nếu thiếu thẻ server do cài lại nginx hãy xem thêm lại thẻ server sau vào thẻ http hoặc có thể lấy lại thiết lập ở file nginx.conf.rpmsave tại đường dẫn /etc/nginx/
+#Cấu hình file sau
+vi  /etc/nginx/conf.d/default.conf
 
-    server {
+#Sửa đoạn code sau 
+server {
+    #listen       80;
+    #server_name  localhost;
+
+#Sửa thành
+
+server {
         listen       80 default_server;
         listen       [::]:80 default_server;
         server_name  www.srv.world;
         root         /usr/share/nginx/html;
 
-        #proxy_redirect      off;
-        #proxy_set_header    X-Real-IP $remote_addr;
-        #proxy_set_header    X-Forwarded-For $proxy_add_x_forwarded_for;
-        #proxy_set_header    Host $http_host;
-
-        #location / {
-        #    proxy_pass http://node01.srv.world/;
-        #}
-
         # Load configuration files for the default server block.
         include /etc/nginx/default.d/*.conf;
 
-        #location / {
-        #}
-
-        error_page 404 /404.html;
-            location = /40x.html {
-        }
-
-        error_page 500 502 503 504 /50x.html;
-            location = /50x.html {
-        }
+#Tìm đến đoạn 
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
     }
-}
+#Sửa thành
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.php index.html index.htm;
+    }
 
+#Tìm đến dòng
+    #location ~ \.php$ {
+    #    root           html;
+    #    fastcgi_pass   127.0.0.1:9000;
+    #    fastcgi_index  index.php;
+    #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+    #    include        fastcgi_params;
+    #}
+#Sửa thành
+    location ~ \.php$ {
+        fastcgi_pass   127.0.0.1:9000;
+        fastcgi_index  index.php;
+        fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+        include        fastcgi_params;
+    }
 
+#sau đó thoát ra và restart lại nginx
+    
+    systemctl restart nginx
 ```
-
 ***
 ## 2. Cài đặt phpmyadmin
 * Cài đặt php 7.4
@@ -264,7 +278,7 @@ systemctl restart php-fpm
 
 ```
 ***
-## 3. Cài đặt nukeviet
+## 3. Cài đặt nukeviet và cấu hình rewrite cho nukeviet
 * Cài đặt nukeviet
 ```php
 cd /usr/share/nginx/html
@@ -272,6 +286,10 @@ cd /usr/share/nginx/html
 wget https://github.com/nukeviet/nukeviet/releases/download/4.5.01/nukeviet4.5.01setup.zip
 
 unzip nukeviet4.5.01setup.zip
+
+mv ./nukeviet/* /usr/share/nginx/html/
+
+rm -f /usr/share/nginx/html/index.html
 
 chown -R nginx:nginx /usr/share/nginx/html
 
@@ -281,6 +299,85 @@ systemctl restart nginx
 
 systemctl restart php-fpm
 
+#Chạy câu lệnh sau đề phòng lỗi session
+
+chown -R nginx:nginx /var/lib/php/session
+service php-fpm restart
+service nginx restart
+
+#Chỉnh sửa lại user và group
+
+vi /etc/php-fpm.d/www.conf
+
+sửa user=nginx và group=nginx
+
+service php-fpm restart
+service nginx restart
+
+```
+* Cấu hình rewrite
+```php
+chỉnh sửa file sau
+
+vi  /etc/nginx/conf.d/default.conf
+
+#tìm đén đoạn code sau
+
+    location ~ \.php$ {
+        fastcgi_pass   127.0.0.1:9000;
+        fastcgi_index  index.php;
+        fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+        include        fastcgi_params;
+    }
+#Thêm vào phía trên đoạn code này đoạn code cấu hình sau
+
+	if ($request_filename ~ /robots.txt$){
+		rewrite ^(.*)$ /robots.php?action=$http_host break;
+	}
+
+        # Thiết lập rewrite chỉ có từ NukeViet 4.3.00
+	rewrite ^/install/check\.rewrite$ /install/rewrite.php break;
+
+	rewrite ^/(.*?)sitemap\.xml$ /index.php?nv=SitemapIndex break;
+	rewrite "^/(.*?)sitemap\-([a-z]{2})\.xml$" /index.php?language=$2&nv=SitemapIndex break;
+	rewrite "^/(.*?)sitemap\-([a-z]{2})\.([a-zA-Z0-9-]+)\.xml$" /index.php?language=$2&nv=$3&op=sitemap break;
+
+	if (!-e $request_filename){
+		rewrite (.*)(\/|\.html)$ /index.php;
+		rewrite /(.*)tag/(.*)$ /index.php;
+	}
+	
+	rewrite ^/seek\/q\=([^?]+)$ /index.php?nv=seek&q=$1 break;
+	rewrite ^/search\/q\=([^?]+)$ /index.php?nv=news&op=search&q=$1 break;
+	rewrite ^/([a-zA-Z0-9\-]+)\/search\/q\=([^?]+)$ /index.php?nv=$1&op=search&q=$2 break; 
+	rewrite ^/([a-zA-Z0-9-\/]+)\/([a-zA-Z0-9-]+)$ /$1/$2/ break; 
+	rewrite ^/([a-zA-Z0-9-]+)$ /$1/ break;		
+
+	location ~ ^/admin/([a-z0-9]+)/(.*)$ {
+		deny all;
+	}
+
+	location ~ ^/(config|includes|install|vendor)/(.*)$ {
+		deny all;
+	}
+
+	location ~ ^/data/(cache|ip|ip6|logs)/(.*)$ {
+		deny all;
+	}
+
+	location ~ ^/(assets|uploads|themes)/(.*).(php|ini|tpl|php3|php4|php5|phtml|shtml|inc|pl|py|jsp|sh|cgi)$ {
+		deny all;
+	}	
+#Lưu lại và thoát
+#Tiếp đến thiết lập file sau
+vi /usr/share/nginx/html/data/config/config_global.php
+
+#Thêm vào sau hàm if đoạn code sau 
+$sys_info['supports_rewrite']='rewrite_mode_apache';
+
+#Lưu lại và khởi động lại các dịch vụ
+service php-fpm restart
+service nginx restart
 ```
 ***
 ## 4. Cài đặt modsecurity
@@ -404,33 +501,6 @@ Include /etc/nginx/modsec/coreruleset-3.3-master/rules/*.conf*
 
 >systemctl restart nginx
 
-* Sửa lại nginx.conf
-```php
-vi /etc/nginx/nginx.conf
-
-#Thêm vào thẻ http
-
-server {
-        listen       80 default_server;
-        listen       [::]:80 default_server;
-        server_name  www.srv.world;
-        root         /usr/share/nginx/html;
-
-        
-        include /etc/nginx/default.d/*.conf;
-
-        location / {
-        }
-
-        error_page 404 /404.html;
-            location = /40x.html {
-        }
-
-        error_page 500 502 503 504 /50x.html;
-            location = /50x.html {
-        }
-    }
-```
 * Tùy chỉnh modscurity
 ```php
 #Truy cập thư mục sau để tùy chỉnh các modsecurity
@@ -459,7 +529,17 @@ http://192.168.1.15//index.html?exec=/bin/bash
 #Sửa file sau
 vi /etc/nginx/modsec/coreruleset-3.4-dev/crs-setup.conf
 
-#Tìm đến dòng khoảng 715 phần Dos proction
+#Tìm đến dòng
+
+#SecAction \
+# "id:900700,\
+#  phase:1,\
+#  nolog,\
+#  pass,\
+#  t:none,\
+#  setvar:'tx.dos_burst_time_slice=60',\  
+#  setvar:'tx.dos_counter_threshold=100',\ 
+#  setvar:'tx.dos_block_timeout=600'"
 
 #Bỏ hết comment và chỉnh sửa như sau để có thể nhanh chóng kiểm tra
 #tx.dos_burst_time_slice=30 
@@ -477,7 +557,7 @@ vi /etc/nginx/modsec/coreruleset-3.4-dev/crs-setup.conf
  setvar:'tx.dos_block_timeout=60'"
 
 
-#Test Dos protection bằng cách request liên tục vào trang web đến khi nào đủ giới hạn như ví dụ trên
+Test Dos protection bằng cách request liên tục vào trang web đến khi nào đủ giới hạn như ví dụ trên
 ```
 
 * Kiểm tra SQL Injection
@@ -496,7 +576,6 @@ admin' --
 ***
 ## 6. Những vấn đề còn tồn tại
 
-* sau khi chặn người dùng Dos đến máy chủ như đã thiết lập thì chưa thể bỏ chặn người dùng được, Người dùng sẽ bị chặn vĩnh viễn cho đến khí restart lại nginx.
+* Sau khi chặn người dùng Dos đến máy chủ như đã thiết lập thì chưa thể bỏ chặn người dùng được, Người dùng sẽ bị chặn vĩnh viễn cho đến khí restart lại nginx.
 
-* Chưa thiết lập được Rewwrite cho nukeviet
 
