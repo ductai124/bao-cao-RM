@@ -100,6 +100,7 @@ module_hotfixes=true
 ```
 * Cài đặt nginx phiên bản mới nhất
 ```php
+dnf upgrade --refresh -y
 #Cài đặt nginx phiên bản mới nhất
 
 yum-config-manager --enable nginx-mainline
