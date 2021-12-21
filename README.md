@@ -599,3 +599,97 @@ admin' --
 * Sau khi chặn người dùng Dos đến máy chủ như đã thiết lập thì chưa thể bỏ chặn người dùng được, Người dùng sẽ bị chặn vĩnh viễn cho đến khí restart lại nginx.
 
 
+## 7. Tạo server mới chứa mysql và thiết lập tường lửa
+
+* Setup truy cập mysql từ máy khác 
+```php
+#truy cập vào mysql
+mysql -u root -p
+
+> create user 'tai123'@'%' identified by 'tai0837686717';
+> stop slave;
+
+> GRANT REPLICATION SLAVE ON *.* TO 'tai123'@'%' IDENTIFIED BY 'tai0837686717';
+
+FLUSH PRIVILEGES;
+
+FLUSH TABLES WITH READ LOCK;
+
+```
+* Sau khi cài đặt máy chứa mysql mariadb thì thực hiện cấu hình tường lửa như sau
+```php
+#Tạo 1 zone riêng
+
+firewall-cmd --permanent --new-zone=sqlzone
+
+firewall-cmd --reload
+
+#Kiểm tra lại các zone
+
+firewall-cmd --get-zones
+
+#Thêm những luật sau vào zone: Mở ssh, mysql, chỉ cho phép ip 192.168.1.15(ip của máy muốn truy cập) truy cập và mở cổng 3306(cổng mặc định của mysql)
+
+firewall-cmd --zone=sqlzone --add-service=mysql --permanent  
+firewall-cmd --zone=sqlzone --add-service=ssh --permanent   
+firewall-cmd --zone=sshzone --add-source='192.168.1.15' --permanent
+firewall-cmd --zone=sqlzone --add-port=3306/tcp --permanent 
+
+firewall-cmd --reload
+
+#kiểm tra lại
+
+firewall-cmd --list-all-zones
+
+#Kiểm tra đã giới hạn ssh và mysql như sau
+#Sử dụng 1 máy có ip khác với ip đã thiết lập ở trên
+
+ssh username@192.168.1.12
+
+mysql -u tai123 -p -h 192.168.1.12
+
+```
+* Đẩy database qua máy server mới chứa mysql
+```php
+#Truy cập vào máy ảo cũ
+#truy cập mysql rồi thực hiện những bước sau
+mysql -u root -p
+
+> create user 'tai123'@'%' identified by 'tai0837686717';
+> stop slave;
+
+> GRANT REPLICATION SLAVE ON *.* TO 'tai123'@'%' IDENTIFIED BY 'tai0837686717';
+
+FLUSH PRIVILEGES;
+
+FLUSH TABLES WITH READ LOCK;
+
+UNLOCK TABLES;
+
+#Chỉnh sửa file sau
+vi /etc/my.cnf
+#Thêm đoạn code sau vào file
+ [mariadb]
+  server-id=1
+  log-bin=master
+  binlog-format=row
+  binlog-do-db=replica_db
+
+  systemctl restart mariadb.service 
+
+#backup lại database
+
+mysqldump --all-databases --user=root --password --master-data > masterdatabase.sql
+
+#Nhập mật khẩu root thiết lập cho mariadb
+#Sau đó đẩy file qua máy server mysql mới lập(với ip của máy đó)
+
+scp masterdatabase.sql root@192.168.1.12:/root/masterdatabase.sql
+
+#Tiếp theo là thao tác trên máy server mysql(192.168.1.12)
+#Import database vừa gửi qua vào database hiện có
+mysql -u root -p < /root/masterdatabase.sql
+systemctl restart mariadb.service 
+#Hoàn thành việc chuyền dữ liệu
+
+```
