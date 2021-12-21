@@ -78,6 +78,8 @@ systemctl stop nginx
 
 dnf remove nginx
 
+dnf install dnf-utils -y
+
 #Tạo đoạn mã chỉ định kho lưu trữ nginx
 
 vi /etc/yum.repos.d/nginx.repo
@@ -100,7 +102,6 @@ module_hotfixes=true
 ```
 * Cài đặt nginx phiên bản mới nhất
 ```php
-dnf install dnf-utils -y
 
 #Cài đặt nginx phiên bản mới nhất
 
