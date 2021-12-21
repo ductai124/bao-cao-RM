@@ -72,6 +72,11 @@ dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.r
 
 dnf install https://rpms.remirepo.net/enterprise/remi-release-8.rpm
 
+#Cài đặt wget và zip
+
+yum -y install wget
+yum -y install unzip
+
 #Gỡ cài đặt nginx bản cũ
 
 systemctl stop nginx
