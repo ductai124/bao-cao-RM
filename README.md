@@ -299,6 +299,8 @@ mv ./nukeviet/* /usr/share/nginx/html/
 
 rm -f /usr/share/nginx/html/index.html
 
+rm -rf nukeviet/
+
 chown -R nginx:nginx /usr/share/nginx/html
 
 chmod -R 777 /usr/share/nginx/html
