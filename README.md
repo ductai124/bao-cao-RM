@@ -255,7 +255,7 @@ Reload privilege tables now? [Y/n] y
     yum -y install wget
     yum -y install unzip
 # Cài đặt các gói php
- 	yum -y install php php-fpm php-gd php-mysqlnd php-cli php-curl php-zip php-common php-bcmath php-imap php-xmlrpc php-json php-mbstring php-xml php-opcache
+ 	yum -y install php php-fpm php-gd php-mysqlnd php-cli php-curl php-zip php-common php-bcmath php-xmlrpc php-json php-mbstring php-xml php-opcache
 # Khởi động lại nginx và php-fpm
     systemctl restart nginx
 
@@ -319,7 +319,17 @@ service nginx restart
 
 vi /etc/php-fpm.d/www.conf
 
-sửa user=nginx và group=nginx
+#Tìm đến 2 dòng
+
+user = apache;
+
+group = apache;
+
+#sửa 
+
+user=nginx; 
+
+group=nginx;
 
 service php-fpm restart
 service nginx restart
