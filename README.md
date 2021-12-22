@@ -634,7 +634,7 @@ firewall-cmd --zone=sqlzone --add-service=mysql --permanent
 firewall-cmd --zone=sqlzone --add-service=ssh --permanent   
 firewall-cmd --zone=sshzone --add-source='192.168.1.15' --permanent
 firewall-cmd --zone=sqlzone --add-port=3306/tcp --permanent 
-
+firewall-cmd --zone=sqlzone --change-interface=ens33
 firewall-cmd --reload
 
 #kiểm tra lại
