@@ -603,17 +603,22 @@ admin' --
 
 * Setup truy cập mysql từ máy khác 
 ```php
+#Cài đặt mariadb trên máy chủ mới như các bước trước đó
 #truy cập vào mysql
 mysql -u root -p
+#Tạo tài khoản mới để truy cập từ xa
+create user 'tai123'@'%' identified by 'tai0837686717';
 
-> create user 'tai123'@'%' identified by 'tai0837686717';
-> stop slave;
+GRANT ALL PRIVILEGES ON *.* TO 'tai123'@'192.168.1.15' IDENTIFIED BY 'tai0837686717';
 
-> GRANT REPLICATION SLAVE ON *.* TO 'tai123'@'%' IDENTIFIED BY 'tai0837686717';
+FLUSH PRIVILEGES;
+#Hoặc sử dụng tài khoản root để truy cập từ xa
+
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'192.168.1.15' IDENTIFIED BY 'tai0837686717' WITH GRANT OPTION;
 
 FLUSH PRIVILEGES;
 
-FLUSH TABLES WITH READ LOCK;
+
 
 ```
 * Sau khi cài đặt máy chứa mysql mariadb thì thực hiện cấu hình tường lửa như sau
@@ -651,45 +656,39 @@ mysql -u tai123 -p -h 192.168.1.12
 ```
 * Đẩy database qua máy server mới chứa mysql
 ```php
-#Truy cập vào máy ảo cũ
-#truy cập mysql rồi thực hiện những bước sau
-mysql -u root -p
+#Cài đặt mariadb backup nếu chưa có
 
-> create user 'tai123'@'%' identified by 'tai0837686717';
-> stop slave;
+dnf -y install mariadb-backup
 
-> GRANT REPLICATION SLAVE ON *.* TO 'tai123'@'%' IDENTIFIED BY 'tai0837686717';
+#Tạo 1 thư mục lưu trữ database backup
 
-FLUSH PRIVILEGES;
+mkdir /home/mariadb_backup
 
-FLUSH TABLES WITH READ LOCK;
+#backup lại database(tai0837686717 là mật khẩu root của mariadb đã được thiết lập)
 
-UNLOCK TABLES;
+mariabackup --backup --target-dir /home/mariadb_backup -u root -p tai0837686717
 
-#Chỉnh sửa file sau
-vi /etc/my.cnf
-#Thêm đoạn code sau vào file
- [mariadb]
-  server-id=1
-  log-bin=master
-  binlog-format=row
-  binlog-do-db=replica_db
-
-  systemctl restart mariadb.service 
-
-#backup lại database
-
-mysqldump --all-databases --user=root --password --master-data > masterdatabase.sql
-
-#Nhập mật khẩu root thiết lập cho mariadb
 #Sau đó đẩy file qua máy server mysql mới lập(với ip của máy đó)
 
-scp masterdatabase.sql root@192.168.1.12:/root/masterdatabase.sql
+cd /home/
+
+scp -r mariadb_backup/ root@192.168.1.12:/root/mariadb_backup
 
 #Tiếp theo là thao tác trên máy server mysql(192.168.1.12)
 #Import database vừa gửi qua vào database hiện có
-mysql -u root -p < /root/masterdatabase.sql
-systemctl restart mariadb.service 
+
+mariabackup --prepare --target-dir /root/mariadb_backup
+
+mariabackup --copy-back --target-dir /root/mariadb_backup
+
+chown -R mysql. /var/lib/mysql
+
+systemctl restart mariadb.service
+
 #Hoàn thành việc chuyền dữ liệu
 
+#sau đó xóa mariadb ở máy chủ cũ đi
+
+systemctl stop mariadb
+rm -rf /var/lib/mysql/*
 ```
