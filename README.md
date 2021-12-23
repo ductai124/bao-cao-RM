@@ -659,6 +659,7 @@ mysql -u tai123 -p -h 192.168.1.12
 ```
 * Đẩy database qua máy server mới chứa mysql
 ```php
+#Cách 1: Backup để sử dụng cho mariadb cùng phiên bản
 #Cài đặt mariadb backup nếu chưa có
 
 dnf -y install mariadb-backup
@@ -694,4 +695,101 @@ systemctl restart mariadb.service
 
 systemctl stop mariadb
 rm -rf /var/lib/mysql/*
+
+#Cách 2 backup file .sql
+#Backup xuất file .sql
+
+mysqldump --all-databases --user=root --password > /root/testbackup.sql
+
+#Đẩy file qua server mysql mới
+cd /root/
+
+scp -r mariadb_backup/ root@192.168.1.12:/root/testbackup.sql
+
+#Import file sql vào trong mariadb
+
+mysql -u root -p < /root/testbackup.sql
+
+```
+* Sử dụng tường lửa CSF
+```php
+#cài đặt gói sau
+
+dnf -y install @perl
+
+#Cài đặt tường lửa CSF
+
+cd /tmp
+wget https://download.configserver.com/csf.tgz
+tar -zxvf csf.tgz
+cd csf
+./install.sh
+rm -rf /tmp/csf
+rm -f /tmp/csf.tgz
+
+#Tắt tường lửa mặc định và bật tường lửa CSF để sử dụng
+systemctl stop firewalld
+systemctl disable firewalld
+
+systemctl enable csf
+systemctl enable lfd
+systemctl start csf
+
+#Kiểm tra CSF đã hoạt động chưa
+systemctl status csf
+
+#Test iptable
+
+/etc/csf/csftest.pl
+
+#Kích hoạt
+vi /etc/csf/csf.conf
+
+#Tìm đến dòng có TESTING và FASTSTART và sửa giá trị như sau
+
+TESTING = 0
+FASTSTART = 1
+#Thi thoảng tường lửa vẫn chặn ip trong csf.alow nên chỉnh về 1 để không bị chặn
+IGNORE_ALLOW = "1"
+
+#1 Số lệnh cơ bản trong trong lửa CSF
+#Start CSF	
+csf -s
+#Flush/Stop firewall rules (note: lfd may restart csf)	
+csf -f
+#Restart CSF	
+csf -r
+#Kiểm tra các rules
+csf -l
+#Allow an IP	
+csf -a ip-address
+#Xóa ip khỏi danh sách cho phép
+csf -ar ip-address
+#Deny IP	
+csf -d ip-address
+#Bỏ chặn ip
+csf -dr ip-address
+#Remove and unblock all entries	
+csf -df
+#Stop firewall	
+csf -x
+#Enable firewall	
+csf -e
+
+
+#Cho phép ip truy
+vi /etc/csf/csf.allow
+
+#Cho phép tcp kết nối inbound cổng 22 ip 192.168.1.2
+tcp|in|d=22|s=192.168.1.2
+
+#Cho phép tcp kết nối outbound cổng 22 ip 192.168.1.2
+tcp|out|d=22|s=192.168.1.2
+
+#Chặn ip truy cập
+vi /etc/csf/csf.deny
+#Chặn tcp kết nối inbound cổng 22 ip 192.168.1.12
+tcp|in|d=22|s=192.168.1.12
+
+
 ```
