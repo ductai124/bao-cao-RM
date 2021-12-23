@@ -704,10 +704,11 @@ mysqldump --all-databases --user=root --password > /root/testbackup.sql
 #Đẩy file qua server mysql mới
 cd /root/
 
-scp -r mariadb_backup/ root@192.168.1.12:/root/testbackup.sql
+scp -r testbackup.sql/ root@192.168.1.12:/root/testbackup.sql
 
 #Import file sql vào trong mariadb
 
+cd /root/
 mysql -u root -p < /root/testbackup.sql
 
 ```
