@@ -765,7 +765,8 @@ TCP_OUT = "20,21,22,25,53,80,110,113,443"
 ICMP_IN = "1"
 #Thành
 ICMP_IN = "0"
-
+#Truy cập vào cổng 22 5 lần trong 300 giấy sẽ bị chặn 300 giây
+PORTFLOOD = “22; tcp; 5; 300
 
 #1 Số lệnh cơ bản trong trong lửa CSF
 #Start CSF	
