@@ -752,6 +752,20 @@ TESTING = 0
 FASTSTART = 1
 #Thi thoảng tường lửa vẫn chặn ip trong csf.alow nên chỉnh về 1 để không bị chặn
 IGNORE_ALLOW = "1"
+#Cho phép user truy cập tới (incoming) các TCP port trên server
+CP_IN = "20,21,22,25,53,80,110,143,443,465,587,993,995"
+#Ta mở thêm cổng 3306 để cho phép kết nối với mysql
+CP_IN = "20,21,22,25,53,80,110,143,443,465,587,993,995,3306"
+#Server kết nối ra (outgoing) tới các TCP port bên ngoài
+TCP_OUT = "20,21,22,25,53,80,110,113,443"
+#Ta mở thêm công 3306 để cho phép kết nối với mysql
+ TCP_OUT = "20,21,22,25,53,80,110,113,443,3306"
+#Chặn ping 
+#Thay đổi giá trị sau
+ICMP_IN = "1"
+#Thành
+ICMP_IN = "0"
+
 
 #1 Số lệnh cơ bản trong trong lửa CSF
 #Start CSF	
