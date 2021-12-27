@@ -753,13 +753,13 @@ FASTSTART = 1
 #Thi thoảng tường lửa vẫn chặn ip trong csf.alow nên chỉnh về 1 để không bị chặn
 IGNORE_ALLOW = "1"
 #Cho phép user truy cập tới (incoming) các TCP port trên server
-CP_IN = "20,21,22,25,53,80,110,143,443,465,587,993,995"
+TCP_IN = "20,21,22,25,53,80,110,143,443,465,587,993,995"
 #Ta mở thêm cổng 3306 để cho phép kết nối với mysql
-CP_IN = "20,21,22,25,53,80,110,143,443,465,587,993,995,3306"
+TCP_IN = "20,21,22,25,53,80,110,143,443,465,587,993,995,3306"
 #Server kết nối ra (outgoing) tới các TCP port bên ngoài
 TCP_OUT = "20,21,22,25,53,80,110,113,443"
 #Ta mở thêm công 3306 để cho phép kết nối với mysql
- TCP_OUT = "20,21,22,25,53,80,110,113,443,3306"
+TCP_OUT = "20,21,22,25,53,80,110,113,443,3306"
 #Chặn ping 
 #Thay đổi giá trị sau
 ICMP_IN = "1"
@@ -808,4 +808,137 @@ vi /etc/csf/csf.deny
 tcp|in|d=22|s=192.168.1.12
 
 
+```
+## 8. Xây dựng mô hình Replication Slave đồng bộ database từ máy master qua máy slave
+* Config máy master chứa database gốc
+```php
+#Chỉnh sửa file sau
+vi /etc/my.cnf.d/mariadb-server.cnf
+
+#add vào dưới [mysql]
+log-bin=mysql-bin
+# define server ID (setup duy nhất không được để trùng)
+server-id=14
+
+#restart lại mariadb
+systemctl restart mariadb
+
+#Tạo user cho slave
+mysql -u root -p
+
+grant replication slave on *.* to repl_user@'%' identified by 'slave0837686717'; 
+
+flush privileges; 
+
+exit;
+
+```
+
+* Trên máy slave thiết lập như sau
+```php
+#Chỉnh sửa file sau
+vi /etc/my.cnf.d/mariadb-server.cnf
+
+#Chỉnh sửa vào dưới [mysql]
+
+log-bin=mysql-bin
+# define server ID (Set ID duy nhất không trùng với master và các slave khác nếu có)
+server-id=9
+# read only yes
+read_only=1
+# define own hostname
+report-host=192.168.1.14
+
+```
+* Quay về lại máy master
+```php
+#Tạo thư mục mariadb_backup và backup lại dữ liệu vào thư mục đấy
+mkdir /home/mariadb_backup
+mariabackup --backup --target-dir /home/mariadb_backup -u root -p password
+
+#chuyển file backup qua bên máy slave
+rsync -avP /home/mariadb_backup dbserver2:/root/mariadb_backup
+
+#dừng mariadb và xóa các dữ liệu hiện có
+systemctl stop mariadb
+rm -rf /var/lib/mysql/*
+
+#Chạy tiếp câu lệnh
+mariabackup --prepare --target-dir /root/mariadb_backup
+
+#Nếu hiện dòng sau thì tiếp tục thực hiện các bước tiếp theo còn nếu không hãy xem lại đường dẫn hoặc thư mục backup đã được đẩy qua máy slave hay chưa
+[00] 2021-08-03 16:23:30 completed OK!
+
+#Restore lại database
+mariabackup --copy-back --target-dir /root/mariadb_backup
+chown -R mysql. /var/lib/mysql
+systemctl start mariadb
+
+
+
+#Chạy câu lệnh sau
+cat /root/mariadb_backup/xtrabackup_binlog_info
+#Sau khi chạy câu lệnh trên sẽ hiện ra đoạn mã tương tự như sau hay ghi nhớ
+
+mysql-bin.000001        642
+
+#Mở mysql
+mysql -u root -p
+
+#giải thích đoạn code
+change master to 
+
+#ip máy chủ
+master_host='192.168.1.14',
+
+#User đã tạo ở máy master             
+master_user='repl_user',
+
+#Mật khẩu
+master_password='slave0837686717',
+
+#Giá trị kiểm tra ở bước trên
+master_log_file='mysql-bin.000001',
+#Giá trị kiểm tra ở bước trên
+master_log_pos=642;
+
+#Chạy đoạn code đó như sau
+change master to 
+master_host='10.0.0.31',
+master_user='repl_user',
+master_password='password',
+master_log_file='mysql-bin.000001',
+master_log_pos=642;
+
+#Khởi động slave
+start slave;
+
+#Kiểm tra trạng thái
+show slave status\G 
+```
+* Kiểm tra
+```php
+#Bên máy master tạo 1 database để kiểm tra
+create database test_database; 
+
+# Tạo bảng
+create table test_database.test_table (id int, name varchar(50), address varchar(50), primary key (id)); 
+Query OK, 0 rows affected (0.108 sec)
+
+# Thêm dữ liệu
+insert into test_database.test_table(id, name, address) values("001", "Rocky Linux", "Hiroshima"); 
+Query OK, 1 row affected (0.036 sec)
+
+# kiểm tra bảng
+select * from test_database.test_table; 
++----+-------------+-----------+
+| id | name        | address   |
++----+-------------+-----------+
+|  1 | Rocky Linux | Hiroshima |
++----+-------------+-----------+
+
+
+#Sau đó qua bên máy slave kiểm tra 
+select * from test_database.test_table; 
+#Nếu hiện đúng dữ liệu bảng vừa tạo thì đã thành công
 ```
