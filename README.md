@@ -858,7 +858,9 @@ mariabackup --backup --target-dir /home/mariadb_backup -u root -p password
 
 #chuyển file backup qua bên máy slave
 rsync -avP /home/mariadb_backup dbserver2:/root/mariadb_backup
-
+```
+* Quay về máy slave
+```php
 #dừng mariadb và xóa các dữ liệu hiện có
 systemctl stop mariadb
 rm -rf /var/lib/mysql/*
