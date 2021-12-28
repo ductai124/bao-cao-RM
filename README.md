@@ -904,9 +904,9 @@ master_log_pos=642;
 
 #Chạy đoạn code đó như sau
 change master to 
-master_host='10.0.0.31',
+master_host='192.168.1.14',
 master_user='repl_user',
-master_password='password',
+master_password='slave0837686717',
 master_log_file='mysql-bin.000001',
 master_log_pos=642;
 
@@ -941,4 +941,41 @@ select * from test_database.test_table;
 #Sau đó qua bên máy slave kiểm tra 
 select * from test_database.test_table; 
 #Nếu hiện đúng dữ liệu bảng vừa tạo thì đã thành công
+```
+* Xử lý Promoting a Slave to Master. Giả lập Master bị hỏng, ví dụ: hỏng ổ cứng, rút dây mạng, dừng dịch vụ, ….Chuyển node slave thành node master tạm thời
+```php
+#Truy cập vào file
+vi /etc/my.cnf.d/mariadb-server.cnf
+bỏ dòng read-only=1
+
+#Đăng nhập vào mysql bên máy slave
+#Xóa cấu hình slave bằng câu lệnh
+stop slave;
+reset slave all;
+exit;
+systemctl restart mysql
+
+#Hiện tại node slave này có thể trở thành node master chúng ta có thể cấu hình lại các node slave khác nhận node này làm node master
+
+```
+* Khi master đã được sửa chữa xong chúng ta sẽ thiết lập đưa slave về đúng vị trí của nó
+```php
+#Đầu tiên là backup lại dữ liệu và đẩy lại qua master do trong quá trình node slave làm master có thể là đã có dữ liệu được ghi thêm vào sau đó đẩy qua bên master rồi import lại rồi bắt đầu thiết lập lại vị trí của slave 
+
+vi /etc/my.cnf.d/mariadb-server.cnf
+#Thêm lại dòng read-only vào sau [mysql]
+read-only=1
+
+#Đăng nhập lại vào mysql bên máy slave
+#cấu hình lại slave
+change master to 
+master_host='192.168.1.14',
+master_user='repl_user',
+master_password='slave0837686717',
+master_log_file='mysql-bin.000001',
+master_log_pos=642;
+start slave;
+
+#Kiểm tra trạng thái
+show slave status\G 
 ```
