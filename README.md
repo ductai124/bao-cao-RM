@@ -981,3 +981,68 @@ start slave;
 #Kiểm tra trạng thái
 show slave status\G 
 ```
+
+* Xử lý backup dữ liệu 1 tiếng 1 lần
+
+```php
+#Tạo thư mục lưu trữ các bản backup
+mkdir /home/mariadb_backup/
+
+#Đầu tiên viết tools backup database
+#Đầu tiên tạo 1 file ở root 
+vi mysql-backup.sh
+
+#Sau đó ghi vào file đoạn code sau
+
+#!/bin/bash
+
+TODAY=`date +"%d:%b:%Y:%H:%M"`
+
+################################################################
+################## Update below values ########################
+
+DB_BACKUP_PATH='/home/mariadb_backup/'
+
+#################################################################
+
+mkdir -p ${DB_BACKUP_PATH}/Time-Backup-File-${TODAY}
+echo "Backup started for database "
+
+mariabackup --backup --target-dir ${DB_BACKUP_PATH}/Time-Backup-File-${TODAY}/backup-mysql-on-${TODAY} -u root -p tai0837686717
+
+if [ $? -eq 0 ]; then
+echo "Database backup successfully completed"
+else
+echo "Error found during backup"
+exit 1
+fi
+
+### End of script ####
+
+#Ghi lại rồi thoát
+#Vậy là tools backup đã được tạo
+#Kiểm tra file có hoạt động không
+bash mysql-backup.sh
+#truy cập vào file /home/mariadb_backup/ để kiểm tra
+cd /home/mariadb_backup/
+ls
+
+#sử dụng crontab để thiết lập 1 tiếng chạy tools 1 lần
+crontab -e
+
+#Backup sau moi gio
+0 * * * * bash /root/mysql-backup.sh
+
+#sau đó lưu lại và thoát
+#Kiểm tra crontab đang hoạt động
+
+crontab -l
+
+#Muốn chỉnh sửa crontab thì tiếp tực crontab -e và sửa trong file hoặc xóa 
+#Muốn xóa toàn bộ setup của crontab thì sử dụng câu lệnh crontab -r
+
+#Kiểm tra thư mục /home/mariadb_backup/ sau 1 tiếng để thấy kết quả
+
+cd /home/mariadb_backup/
+
+```
