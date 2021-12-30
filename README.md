@@ -994,21 +994,13 @@ vi mysql-backup.sh
 
 #Sau đó ghi vào file đoạn code sau
 
-#!/bin/bash
-
 TODAY=`date +"%d:%b:%Y:%H:%M"`
-
-################################################################
-################## Update below values ########################
-
 DB_BACKUP_PATH='/home/mariadb_backup/'
-
 #################################################################
-
-mkdir -p ${DB_BACKUP_PATH}/Time-Backup-File-${TODAY}
+mkdir -p ${DB_BACKUP_PATH}/${TODAY}
 echo "Backup started for database "
 
-mariabackup --backup --target-dir ${DB_BACKUP_PATH}/Time-Backup-File-${TODAY}/backup-mysql-on-${TODAY} -u root -p tai0837686717
+mariabackup --backup --target-dir ${DB_BACKUP_PATH}/${TODAY}/backup-mysql-on-${TODAY} -u root -p tai0837686717
 
 if [ $? -eq 0 ]; then
 echo "Database backup successfully completed"
@@ -1017,7 +1009,19 @@ echo "Error found during backup"
 exit 1
 fi
 
+###xóa file backup đã tồn tại được 3 tiếng
+BACKUP_RETAIN_DAYS=3
+DBDELDATE=`date +"%d:%b:%Y:%H:%M" --date="${BACKUP_RETAIN_DAYS} hour ago"`
+
+if [ ! -z ${DB_BACKUP_PATH} ]; then
+      cd ${DB_BACKUP_PATH}
+      if [ ! -z ${DBDELDATE} ] && [ -d ${DBDELDATE} ]; then
+            rm -rf ${DBDELDATE}
+      fi
+fi
+
 ### End of script ####
+
 
 #Ghi lại rồi thoát
 #Vậy là tools backup đã được tạo
