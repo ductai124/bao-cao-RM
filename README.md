@@ -1009,7 +1009,7 @@ echo "Error found during backup"
 exit 1
 fi
 
-###xóa file backup đã tồn tại được 3 tiếng
+#Xóa cách 1: xóa file backup đã tồn tại được 3 tiếng
 BACKUP_RETAIN_DAYS=3
 DBDELDATE=`date +"%d:%b:%Y:%H:%M" --date="${BACKUP_RETAIN_DAYS} hour ago"`
 
@@ -1020,6 +1020,9 @@ if [ ! -z ${DB_BACKUP_PATH} ]; then
       fi
 fi
 
+#Xóa cách 2
+#Tìm các file đã cũ hơn 8 tiếng và xóa nó đi
+find /home/mariadb_backup -name folder_* -cmin +480 | xargs /bin/rm -rf | xargs /bin/rm -f
 ### End of script ####
 
 
@@ -1284,3 +1287,85 @@ xf58
 34 packets received by filter
 0 packets dropped by kernel
 ```
+
+## 10. Xử lý chuyển slave thành master khi có sự cố
+* Giả xử có 1 máy master 192.168.1.14 và 2 máy slave 192.168.1.9 và 192.168.1.12
+* Khi máy 192.168.1.14 bị hỏng giải quyết để chuyển 192.168.1.9 thành master máy còn lại vẫn là slave
+* Bước 1: thực hiện trên 192.168.1.9
+```php
+vi /etc/my.cnf.d/mariadb-server.cnf
+# Bỏ dòng read-only =1
+# Bỏ dòng report-host=192.168.1.14
+
+#Sau đó đăng nhập vào mysql
+mysql -u root -p
+stop slave;
+reset slave all;
+exit;
+systemctl restart mysql
+
+#backup lại sql
+mariabackup --backup --target-dir /home/mariadb_backup_2 -u root -p tai0837686717
+
+#Chuyển file qua bên máy slave 192.168.1.12
+rsync -avP /home/mariadb_backup_2 root@192.168.1.12:/root/
+
+```
+
+* Qua bên máy slave 192.168.1.12
+```php
+#trước khi thiết lập hãy xóa toàn bộ cấu hình slave
+mysql -u root -p
+stop slave;
+reset slave all;
+exit;
+systemctl restart mysql
+
+vi /etc/my.cnf.d/mariadb-server.cnf
+# Thay đổi report-host=192.168.1.14
+report-host=192.168.1.9
+
+#Thực hiện lại các bước thiết lập slave
+systemctl stop mariadb
+rm -rf /var/lib/mysql/*
+
+#Chạy tiếp câu lệnh
+mariabackup --prepare --target-dir /root/mariadb_backup_2
+
+#Nếu hiện dòng sau thì tiếp tục thực hiện các bước tiếp theo còn nếu không hãy xem lại đường dẫn hoặc thư mục backup đã được đẩy qua máy slave hay chưa
+[00] 2021-08-03 16:23:30 completed OK!
+
+#Restore lại database
+mariabackup --copy-back --target-dir /root/mariadb_backup_2
+chown -R mysql. /var/lib/mysql
+systemctl start mariadb
+
+
+
+#Chạy câu lệnh sau
+cat /root/mariadb_backup_2/xtrabackup_binlog_info
+
+mysql-bin.000011    328
+
+#Truy cập mysql
+
+mysql -u root -p
+
+#Thiết lập slave
+change master to 
+master_host='192.168.1.9',
+master_user='repl_user',
+master_password='slave0837686717',
+master_log_file='mysql-bin.000011',
+master_log_pos=328;
+
+#Thiết lập ssl
+CHANGE MASTER TO MASTER_SSL = 1, MASTER_SSL_CA = '/etc/mysql/transit/ca.pem', MASTER_SSL_CERT = '/etc/mysql/transit/client-cert.pem', MASTER_SSL_KEY = '/etc/mysql/transit/client-key.pem';
+
+#Mở lại slave
+START SLAVE;
+#Kiểm tra slave
+SHOW SLAVE STATUS\G
+
+```
+
