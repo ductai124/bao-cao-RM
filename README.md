@@ -997,10 +997,10 @@ vi mysql-backup.sh
 TODAY=`date +"%d:%b:%Y:%H:%M"`
 DB_BACKUP_PATH='/home/mariadb_backup/'
 #################################################################
-mkdir -p ${DB_BACKUP_PATH}/${TODAY}
+mkdir -p ${DB_BACKUP_PATH}/folder_${TODAY}
 echo "Backup started for database "
 
-mariabackup --backup --target-dir ${DB_BACKUP_PATH}/${TODAY}/backup-mysql-on-${TODAY} -u root -p tai0837686717
+mariabackup --backup --target-dir ${DB_BACKUP_PATH}/folder_${TODAY}/backup-mysql-on-${TODAY} -u root -p tai0837686717
 
 if [ $? -eq 0 ]; then
 echo "Database backup successfully completed"
