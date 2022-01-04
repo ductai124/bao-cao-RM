@@ -1303,6 +1303,10 @@ stop slave;
 reset slave all;
 exit;
 systemctl restart mysql
+#Qua máy web thiết lập lại cho máy chủ sử dụng csdl của slave hiện tại
+cd /usr/share/nginx/html
+vi config.php
+#Chỉnh sửa ip về thành ip máy đang chuẩn bị thiết lập thành master
 
 #backup lại sql
 mariabackup --backup --target-dir /home/mariadb_backup_2 -u root -p tai0837686717
