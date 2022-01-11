@@ -806,8 +806,10 @@ tcp|out|d=22|s=192.168.1.2
 vi /etc/csf/csf.deny
 #Chặn tcp kết nối inbound cổng 22 ip 192.168.1.12
 tcp|in|d=22|s=192.168.1.12
-
-
+#Chặn ip trong 1 khoảng thời gian
+csf -td 0.0.0.0/0 60 -d inout "block all in/out connections for 60 seconds" 
+#Kiểm tra 
+csf -t
 ```
 ## 8. Xây dựng mô hình Replication Slave đồng bộ database từ máy master qua máy slave
 * Config máy master chứa database gốc
