@@ -1375,3 +1375,189 @@ SHOW SLAVE STATUS\G
 
 ```
 
+## 11. Bài tập thiết lập cân bằng tải
+* Có 4 máy : 
+    * Máy chủ nginx Master đóng vài trò là máy cân bằng tải: 192.168.1.17
+    * Máy chủ nginx số 1: 192.168.1.18
+    * Máy chủ nginx số 2: 192.168.1.19
+    * Máy chủ nginx số 3: 192.168.1.20
+* Kịch bản lựa chọn:
+    * Máy chủ nginx số 3 sẽ là máy chủ backup (khi 2 máy chủ số 1 và 2 bị chết thì mới mở máy chủ số 3 lên)
+    * Master đóng vai trò cân bằng tải:
+    * khi mà truy cập vào máy chủ mà bị đánh dấu không tốt đủ số lần thì sẽ không truy cập vào nó nữa
+
+* Đầu tiên tiến hành cài đặt nginx trên tất cả các máy chủ 
+```php
+#Tắt Selinnux
+sed -i 's/\(^SELINUX=\).*/\SELINUX=disabled/' /etc/sysconfig/selinux
+sed -i 's/\(^SELINUX=\).*/\SELINUX=disabled/' /etc/selinux/config
+#Update và upgrade
+dnf upgrade --refresh -y
+dnf update -y
+reboot
+#Cài đặt nginx 
+dnf -y install nginx
+
+#config nginx
+vi /etc/nginx/nginx.conf
+#Dòng 41 : đổi hostname(Chỉ cần trên máy master)
+server_name www.srv.world;
+
+systemctl enable --now nginx
+
+firewall-cmd --add-service=http
+
+firewall-cmd --runtime-to-permanent
+
+#Ở bên các server còn lại xóa file index.html đi và thay bằng file index html khác với nội dung như sau để dễ nhận biết các server
+rm -f /usr/share/nginx/html/index.html
+
+vi /usr/share/nginx/html/index.html
+
+<html>
+<body>
+<div style="width: 100%; font-size: 40px; font-weight: bold; text-align: center;">
+#(đặt stt theo server tương ứng)
+Đây là NGINX SERVER 1
+</div>
+</body>
+</html>
+```
+* Thiết lập cân bằng tải
+```php
+
+vi /etc/nginx/nginx.conf
+#Comment lại toàn bộ thẻ server hoặc xóa đi
+#sau đó thêm đoạn code sau vào trong thẻ http
+http {
+    ...
+    ...
+    ...
+   upstream backend {
+       server server_1;
+       server server_2;
+   }
+   server {
+        listen 80;
+        
+       location / {
+           proxy_pass http://backend;
+       }
+   }
+
+
+
+   .....
+}
+
+#Có các thuật toán sau
+#Least connected nginx sẽ tính lưu lượng traffic và connection thực tế mà server đó đang phải xử lý và sẽ phân bổ request mới đến server đang phải xử lý ít request hơn. Đây là 1 thuật toán khá thực tế trong cân bằng tải và khả đúng với cái tên của nó
+#sử dụng bằng cách thêm vào trong thẻ upstream backend
+
+   upstream backend {
+       least_conn;
+       server 192.168.1.18;
+       server 192.168.1.19;
+       server 192.168.1.20;
+   }
+
+#ip_hash sử dụng hash và nó hash ip address của client sử dụng bộ 3 octet của ipv4 hoặc toàn bộ địa chỉ ipv6 để làm key mã hóa Thuật toán này đảm bảo rằng, khi hoạt động bình thường , request từ 1 client luôn luôn chỉ đến 1 server điều này khá là giúp ích cho quá trình cân bằng tải
+#sử dụng bằng cách thêm vào trong thẻ upstream backend
+
+   upstream backend {
+       ip_hash;
+       server 192.168.1.18;
+       server 192.168.1.19;
+       server 192.168.1.20;
+   }
+
+#Ramdom sẽ random các server để lựa chọn server mà request sẽ đi tới nó có thể hỗ trợ cho thuật toán Least connected và 1 số thuật toán có trả phí
+
+upstream backend {
+       random two least_conn;
+       server 192.168.1.18;
+       server 192.168.1.19;
+       server 192.168.1.20;
+   }
+
+#Như ở đây nginx chọn ra 2 server thỏa mãn thuật toán Least connected
+
+
+#Health checks
+#Sửa đổi thẻ location như sau
+location / {
+    proxy_next_upstream http_404;
+    proxy_pass http://backend;
+}
+
+#Sau khi thiết lập xong hay thử tìm 1 page mà chỉ có 1 server có và request lúc đó ta thấy được những server không có page đó(lỗi 404) sẽ bị đánh dấu là không khỏe mạnh và sẽ request thẳng qua các server khác
+
+#Fail timeout
+upstream backend {
+       random two least_conn;
+       server 192.168.1.18 max_fails=3 fail_timeout=30;
+       server 192.168.1.19 ;
+       server 192.168.1.20 ;
+   }
+#nếu trong 30s mà server upstream có 3 lần bị đánh dấu là unhealthy thì server đó sẽ bị remove khỏi danh sách server active để phân phối traffic để kiểm tra điều đó ta có thể tắt server 192.168.1.18 đi và sau 3 lần request đến và nó hiện lỗi 502 thì sau nó ta thấy nó sẽ không request đến server đó nữa
+
+#Down server
+upstream backend {
+       random two least_conn;
+       server 192.168.1.18 max_fails=3 fail_timeout=30;
+       server 192.168.1.19 down;
+       server 192.168.1.20 ;
+   }
+#Server 192.168.1.19 sẽ bị ngừng request đến. Lý do không xóa hay comment vào để xóa cấu hình thì là do nếu muốn sử dụng thuật toán ip hash thì thiết lập 1 server down thay vì xóa cấu hình sẽ đảm bảo tính toàn vẹn   
+
+#Backup server
+upstream backend {
+       random two least_conn;
+       server 192.168.1.18 max_fails=3 fail_timeout=30;
+       server 192.168.1.19 ;
+       server 192.168.1.20 backup;
+   }
+#Server 192.168.1.20 sẽ được thiết lập làm server backup có nghĩa là khi 2 server còn lại đêu không hoạt động thì server này mới được request đến
+
+#Weight Server
+#Thiết lập để ưu tiên server nào nhận được nhiều băng thông, request hơn
+
+upstream backend {
+       random two least_conn;
+       server 192.168.1.18 max_fails=3 fail_timeout=30 weight=4;
+       server 192.168.1.19 weight=2;
+       server 192.168.1.20 backup;
+   }
+#Như ở đây thì băng thông dành cho server 1 sẽ gấp đôi server 2. Nếu không thiết lập thì weight mặc định bằng 1
+
+# config sẽ có những dòng code sau đây
+
+
+http {
+    ...
+    ...
+    ...
+   upstream backend {
+       random two least_conn;
+       server 192.168.1.18 max_fails=3 fail_timeout=30 weight=4;
+       server 192.168.1.19 max_fails=3 fail_timeout=30 weight=2;
+       server 192.168.1.20 backup;
+   }
+   server {
+        listen 80;
+        
+       location / {
+           proxy_next_upstream http_404;
+           proxy_pass http://backend;
+       }
+   }
+
+
+
+   .....
+}
+```
+
+
+## 12. Bài tập giữ session
+## 13. Bài tập NFS server
