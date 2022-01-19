@@ -1382,9 +1382,13 @@ SHOW SLAVE STATUS\G
     * Máy chủ nginx số 2: 192.168.1.19
     * Máy chủ nginx số 3: 192.168.1.20
 * Kịch bản lựa chọn:
-    * Máy chủ nginx số 3 sẽ là máy chủ backup (khi 2 máy chủ số 1 và 2 bị chết thì mới mở máy chủ số 3 lên)
+    * Ban đầu có 1 máy chủ web số 1: 192.168.1.18 và sau 1 thời gian đi vào hoạt động máy chủ đã không thể chịu nổi lượng truy cập lớn ngày càng tăng của người dùng từ đó.
+    * Do nhu cầu truy cập cao và 1 máy chủ không thể tải hết được ta sẽ phát sinh ra phải tạo thêm 1 con máy chủ nữa và 1 con cân bằng tải. Từ đó sẽ thiết lập thêm 2 máy
+        * Máy chủ nginx Master đóng vài trò là máy cân bằng tải: 192.168.1.17
+        * Máy chủ nginx số 2: 192.168.1.19
+    * Và sau 1 thời gian nữa khi lưu lượng truy cập của người dùng lại tăng lên và 2 máy chủ web không đủ để sử dụng nữa thì sẽ  phát sinh thêm máy chủ nginx số 3: 192.168.1.20
     * Master đóng vai trò cân bằng tải:
-    * khi mà truy cập vào máy chủ mà bị đánh dấu không tốt đủ số lần thì sẽ không truy cập vào nó nữa
+        * khi mà truy cập vào máy chủ mà bị đánh dấu không tốt đủ số lần thì sẽ không truy cập vào nó nữa
 
 * Đầu tiên tiến hành cài đặt nginx trên tất cả các máy chủ 
 ```php
@@ -1451,7 +1455,7 @@ http {
 }
 
 #Có các thuật toán sau
-#Least connected nginx sẽ tính lưu lượng traffic và connection thực tế mà server đó đang phải xử lý và sẽ phân bổ request mới đến server đang phải xử lý ít request hơn. Đây là 1 thuật toán khá thực tế trong cân bằng tải và khả đúng với cái tên của nó
+#Least connected nginx sẽ tính lưu lượng truy cập và kết nối thực tế mà server đó đang phải xử lý và sẽ phân bổ request mới đến server đang phải xử lý ít request hơn. Đây là 1 thuật toán khá thực tế trong cân bằng tải và khả đúng với cái tên của nó
 #sử dụng bằng cách thêm vào trong thẻ upstream backend
 
    upstream backend {
@@ -1471,7 +1475,7 @@ http {
        server 192.168.1.20;
    }
 
-#Ramdom sẽ random các server để lựa chọn server mà request sẽ đi tới nó có thể hỗ trợ cho thuật toán Least connected và 1 số thuật toán có trả phí
+#Ramdom sẽ ngẫu nhiên các server để lựa chọn server mà request sẽ đi tới nó có thể hỗ trợ cho thuật toán Least connected và 1 số thuật toán có trả phí
 
 upstream backend {
        random two least_conn;
@@ -1538,10 +1542,10 @@ http {
     ...
     ...
    upstream backend {
-       random two least_conn;
+       least_conn;
        server 192.168.1.18 max_fails=3 fail_timeout=30 weight=4;
        server 192.168.1.19 max_fails=3 fail_timeout=30 weight=2;
-       server 192.168.1.20 backup;
+       server 192.168.1.20 max_fails=3 fail_timeout=30 weight=2;
    }
    server {
         listen 80;
@@ -1560,4 +1564,5 @@ http {
 
 
 ## 12. Bài tập giữ session
+
 ## 13. Bài tập NFS server
