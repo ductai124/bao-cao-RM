@@ -56,6 +56,7 @@ vi /etc/nginx/nginx.conf
 ***
 # TÀI LIỆU HƯỚNG CÁC BƯỚC ĐẦU TIÊN CÀI ĐẶT VÀ CẤU HÌNH WEB SERVER BẰNG NGINX ROCKY LINUX TRÊN MÁY ẢO
 ***
+
 ## 1.	Cài đặt nginx
 * Tắt SELinux đi đề phòng phát sinh lỗi
 ```php
@@ -1564,5 +1565,99 @@ http {
 
 
 ## 12. Bài tập giữ session
+* Giải pháp sử dụng ở đây là sử dụng Memcached
+* Cài đặt Memcached lên trên máy chủ cân bằng tải
+```php
+#Update lại OS
+dnf update -y
+reboot
 
+#Cài đặt memcached
+dnf install memcached libmemcached -y
+#Kiểm tra thông tin
+rpm -qi memcached
+
+
+
+#Cấu hình memcached như sau
+vi /etc/sysconfig/memcached
+
+PORT="11211"
+USER="memcached"
+MAXCONN="1024"
+CACHESIZE="64"
+OPTIONS=""
+
+#Mở cổng tường lửa
+firewall-cmd --add-port=11211/tcp --zone=public --permanent
+firewall-cmd --reload
+#Kiểm tra
+firewall-cmd --list-ports | grep 11211
+
+#Khởi động memcached
+systemctl enable memcached.service
+systemctl start memcached.service
+#Kiểm tra trạng thái
+systemctl status memcached
+
+```
+* Tại các máy server ta cài đặt như sau
+```php
+#Update lại OS
+dnf update -y
+reboot
+
+#Mở cổng tường lửa
+firewall-cmd --add-port=11211/tcp --zone=public --permanent
+firewall-cmd --reload
+#Kiểm tra
+firewall-cmd --list-ports | grep 11211
+
+#Cài đặt 2 gói epel và remi
+dnf install epel-release -y
+dnf install https://rpms.remirepo.net/enterprise/remi-release-8.rpm -y
+
+#Cài đặt php
+dnf module enable php:remi-7.4 -y
+dnf install php-pecl-memcache php-pecl-memcached -y
+dnf install nginx php php-cli -y
+
+#Tạo file info.php để kiểm tra
+echo '<?php phpinfo(); ?>' > /usr/share/nginx/html/info.php
+
+#Cài đặt telnet
+yum install -y telnet
+
+#Kiểm tra kết nối đến với máy chủ chứa memcached
+telnet 192.168.1.17 11211
+
+tạo file test session
+
+
+code test session
+vi /usr/share/nginx/html/test.php
+<?php
+error_reporting(E_ALL | E_STRICT);
+ini_set('display_startup_errors', 1);
+ini_set('display_errors', 1);
+
+ini_set('session.save_handler', 'memcached');
+ini_set('session.save_path', '192.168.1.17:11211');
+ini_set('session.gc_maxlifetime', 1800);
+
+if (empty($_SESSION)) session_start();
+#session_start();
+
+echo 'Welcome to server 1<br />';
+
+if (isset($_SESSION['count_hit'])) {
+    $count_hit = $_SESSION['count_hit'];
+} else {
+    $count_hit = 0;
+}
+$_SESSION['count_hit'] = $count_hit + 1;
+
+echo "count_hit = " . $count_hit . "<br>";
+
+```
 ## 13. Bài tập NFS server
