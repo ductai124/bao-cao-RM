@@ -1588,11 +1588,54 @@ MAXCONN="1024"
 CACHESIZE="64"
 OPTIONS=""
 
-#Mở cổng tường lửa
-firewall-cmd --add-port=11211/tcp --zone=public --permanent
-firewall-cmd --reload
-#Kiểm tra
-firewall-cmd --list-ports | grep 11211
+#Cài đặt và sử dụng tường lửa csf
+dnf -y install @perl
+cd /tmp
+wget https://download.configserver.com/csf.tgz
+tar -zxvf csf.tgz
+cd csf
+./install.sh
+rm -rf /tmp/csf
+rm -f /tmp/csf.tgz
+#Tắt tường lửa mặc định và bật tường lửa CSF để sử dụng
+systemctl stop firewalld
+systemctl disable firewalld
+systemctl enable csf
+systemctl enable lfd
+systemctl start csf
+
+#Kiểm tra CSF đã hoạt động chưa
+systemctl status csf
+
+#Test iptable
+/etc/csf/csftest.pl
+
+#Kích hoạt
+vi /etc/csf/csf.conf
+
+#Tìm đến dòng có TESTING và FASTSTART và sửa giá trị như sau
+TESTING = 0
+FASTSTART = 1
+#Thi thoảng tường lửa vẫn chặn ip trong csf.alow nên chỉnh về 1 để không bị chặn
+IGNORE_ALLOW = "1"
+#Comment toàn bộ 4 dòng sau lại hoặc là xóa đi và chỉ mở cổng 80 và 43
+TCP_IN = "20,21,22,25,53,80,110,143,443,465,587,993,995"
+TCP_IN = "20,21,22,25,53,80,110,143,443,465,587,993,995,3306"
+UDP_OUT = "20,21,22,25,53,80,110,113,443"
+UDP_OUT = "20,21,22,25,53,80,110,113,443,3306"
+
+#Sửa thành
+TCP_IN = "80,43"
+TCP_IN = "80,43"
+UDP_OUT = "80,43"
+UDP_OUT = "80,43"
+
+#Mở cổng cho memcache hoạt động
+vi /etc/csf/csf.allow
+tcp|in|d=11211|s=192.168.1.18
+tcp|in|d=11211|s=192.168.1.19
+
+csf -r
 
 #Khởi động memcached
 systemctl enable memcached.service
@@ -1606,12 +1649,6 @@ systemctl status memcached
 #Update lại OS
 dnf update -y
 reboot
-
-#Mở cổng tường lửa
-firewall-cmd --add-port=11211/tcp --zone=public --permanent
-firewall-cmd --reload
-#Kiểm tra
-firewall-cmd --list-ports | grep 11211
 
 #Cài đặt 2 gói epel và remi
 dnf install epel-release -y
@@ -1661,3 +1698,84 @@ echo "count_hit = " . $count_hit . "<br>";
 
 ```
 ## 13. Bài tập NFS server
+* Thiết lập bên phía máy chủ NFS
+```php
+#Cài đặt NFS
+dnf -y install nfs-utils
+
+#Set thư mục chia sẻ
+vi /etc/exports
+/home/nfsshare 192.168.1.0/24(rw,no_root_squash)
+
+#Tạo thư mục và khỏi động nfs
+mkdir /home/nfsshare
+systemctl enable --now rpcbind nfs-server
+
+
+#Mở cổng cho NFS hoạt động
+vi /etc/csf/csf.allow
+#Cổng cho NFS
+tcp|in|d=2049|s=192.168.1.18
+tcp|in|d=2049|s=192.168.1.19
+#Cổng cho nfsv3
+tcp|in|d=111|s=192.168.1.18
+tcp|in|d=111|s=192.168.1.19
+#Cổng cho mount
+tcp|in|d=33333|s=192.168.1.18
+tcp|in|d=33333|s=192.168.1.19
+```
+* Thiết lập bên client NFS
+```php
+#Cài đặt nfs
+dnf -y install nfs-utils
+
+#Mount nfs
+mount -t nfs 192.168.1.17:/home/nfsshare /mnt
+#Kiểm tra
+df -hT
+
+Filesystem                  Type      Size  Used Avail Use% Mounted on
+devtmpfs                    devtmpfs  374M     0  374M   0% /dev
+tmpfs                       tmpfs     392M     0  392M   0% /dev/shm
+tmpfs                       tmpfs     392M  5.6M  386M   2% /run
+tmpfs                       tmpfs     392M     0  392M   0% /sys/fs/cgroup
+/dev/mapper/rl-root         xfs        47G  2.6G   45G   6% /
+/dev/sda1                   xfs      1014M  260M  755M  26% /boot
+192.168.1.17:/home/nfsshare nfs4       47G  2.6G   45G   6% /mnt
+tmpfs                       tmpfs      79M     0   79M   0% /run/user/0
+
+#Mount nfsv3
+mount -t nfs -o vers=3 192.168.1.17:/home/nfsshare /mnt
+#Kiểm tra
+df -hT /mnt
+Filesystem                  Type  Size  Used Avail Use% Mounted on
+192.168.1.17:/home/nfsshare nfs4   47G  2.6G   45G   6% /mnt
+
+#Thiết lập auto mount
+vi /etc/fstab
+192.168.1.17:/home/nfsshare /mnt               nfs     defaults        0 0
+
+#Gán liên kết động
+dnf -y install autofs
+vi /etc/auto.master
+/-    /etc/auto.mount
+
+vi /etc/auto.mount
+/mnt   -fstype=nfs,rw  192.168.1.17:/home/nfsshare
+
+#Khởi động autofs
+systemctl enable --now autofs
+cd /mnt
+
+#Kiểm tra
+grep /mnt /proc/mounts
+
+192.168.1.17:/home/nfsshare /mnt nfs4 rw,relatime,vers=4.2,rsize=131072,wsize=131072,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.1.18,local_lock=none,addr=192.168.1.17 0 0
+/etc/auto.mount /mnt autofs rw,relatime,fd=17,pgrp=1186,timeout=300,minproto=5,maxproto=5,direct,pipe_ino=31680 0 0
+192.168.1.17:/home/nfsshare /mnt nfs4 rw,relatime,vers=4.2,rsize=131072,wsize=131072,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.1.18,local_lock=none,addr=192.168.1.17 0 0
+
+
+#Ta có thể tạo file ở trong mnt để kiểm tra
+
+
+```
