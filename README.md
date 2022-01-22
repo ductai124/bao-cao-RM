@@ -56,7 +56,34 @@ vi /etc/nginx/nginx.conf
 ***
 # TÀI LIỆU HƯỚNG CÁC BƯỚC ĐẦU TIÊN CÀI ĐẶT VÀ CẤU HÌNH WEB SERVER BẰNG NGINX ROCKY LINUX TRÊN MÁY ẢO
 ***
+# Mục lục
+[1.	Cài đặt nginx](https://github.com/ductai124/bao-cao-RM#1c%C3%A0i-%C4%91%E1%BA%B7t-nginx)
 
+[2. Cài đặt phpmyadmin](https://github.com/ductai124/bao-cao-RM#2-c%C3%A0i-%C4%91%E1%BA%B7t-phpmyadmin)
+
+[3. Cài đặt nukeviet và cấu hình rewrite cho nukeviet](https://github.com/ductai124/bao-cao-RM#3-c%C3%A0i-%C4%91%E1%BA%B7t-nukeviet-v%C3%A0-c%E1%BA%A5u-h%C3%ACnh-rewrite-cho-nukeviet)
+
+[4. Cài đặt modsecurity](https://github.com/ductai124/bao-cao-RM#4-c%C3%A0i-%C4%91%E1%BA%B7t-modsecurity)
+
+[5. Hướng dẫn thiết lập Test một số các modsecurity](https://github.com/ductai124/bao-cao-RM#5-h%C6%B0%E1%BB%9Bng-d%E1%BA%ABn-thi%E1%BA%BFt-l%E1%BA%ADp-test-m%E1%BB%99t-s%E1%BB%91-c%C3%A1c-modsecurity)
+
+[6. Những vấn đề còn tồn tại](https://github.com/ductai124/bao-cao-RM#6-nh%E1%BB%AFng-v%E1%BA%A5n-%C4%91%E1%BB%81-c%C3%B2n-t%E1%BB%93n-t%E1%BA%A1i)
+
+[7. Tạo server mới chứa mysql và thiết lập tường lửa](https://github.com/ductai124/bao-cao-RM#7-t%E1%BA%A1o-server-m%E1%BB%9Bi-ch%E1%BB%A9a-mysql-v%C3%A0-thi%E1%BA%BFt-l%E1%BA%ADp-t%C6%B0%E1%BB%9Dng-l%E1%BB%ADa)
+
+[8. Xây dựng mô hình Replication Slave đồng bộ database từ máy master qua máy slave](https://github.com/ductai124/bao-cao-RM#8-x%C3%A2y-d%E1%BB%B1ng-m%C3%B4-h%C3%ACnh-replication-slave-%C4%91%E1%BB%93ng-b%E1%BB%99-database-t%E1%BB%AB-m%C3%A1y-master-qua-m%C3%A1y-slave)
+
+[9. Mã hóa dữ liệu khi chuyển từ master qua slave](https://github.com/ductai124/bao-cao-RM#9-m%C3%A3-h%C3%B3a-d%E1%BB%AF-li%E1%BB%87u-khi-chuy%E1%BB%83n-t%E1%BB%AB-master-qua-slave)
+
+[10. Xử lý chuyển slave thành master khi có sự cố](https://github.com/ductai124/bao-cao-RM#10-x%E1%BB%AD-l%C3%BD-chuy%E1%BB%83n-slave-th%C3%A0nh-master-khi-c%C3%B3-s%E1%BB%B1-c%E1%BB%91)
+
+[11. Bài tập thiết lập cân bằng tải](https://github.com/ductai124/bao-cao-RM#11-b%C3%A0i-t%E1%BA%ADp-thi%E1%BA%BFt-l%E1%BA%ADp-c%C3%A2n-b%E1%BA%B1ng-t%E1%BA%A3i)
+
+[12. Bài tập giữ session](https://github.com/ductai124/bao-cao-RM#12-b%C3%A0i-t%E1%BA%ADp-gi%E1%BB%AF-session)
+
+[13. Bài tập NFS server](https://github.com/ductai124/bao-cao-RM#13-b%C3%A0i-t%E1%BA%ADp-nfs-server)
+
+[]()
 ## 1.	Cài đặt nginx
 * Tắt SELinux đi đề phòng phát sinh lỗi
 ```php
