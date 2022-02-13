@@ -83,7 +83,7 @@ vi /etc/nginx/nginx.conf
 
 [13. Bài tập NFS server](https://github.com/ductai124/bao-cao-RM#13-b%C3%A0i-t%E1%BA%ADp-nfs-server)
 
-[14. Bài tập NFS server](https://github.com/ductai124/bao-cao-RM#13-thi%E1%BA%BFt-l%E1%BA%ADp-elastic-stack)
+[14. Bài tập NFS server](https://github.com/ductai124/bao-cao-RM#14-thi%E1%BA%BFt-l%E1%BA%ADp-elastic-stack)
 
 []()
 ## 1.	Cài đặt nginx
