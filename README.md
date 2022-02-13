@@ -1806,3 +1806,210 @@ grep /mnt /proc/mounts
 
 
 ```
+## 13. Thiết lập Elastic Stack
+* Elastic Stack bao gồm:
+    * Elasticsearch - máy chủ lưu trữ và tìm kiếm dữ liệu
+    * Logstash - thành phần xử lý dữ liệu, sau đó nó gửi dữ liệu nhận được cho Elasticsearch để lưu trữ
+    * Kibana - ứng dụng nền web để tìm kiếm và xem trực quan các logs
+    * Beats - gửi dữ liệu thu thập từ log của máy đến Logstash
+* Đây sẽ là hướng dẫn thiết lập Elastic Stack trên 1 máy duy nhất
+# Đầu tiên tiến hành cài đặt Elastic Search
+```php
+#Update và cài đặt java
+yum update -y
+yum install java-1.8.0-openjdk-devel -y
+# kiểm tra bằng lệnh
+java -version
+
+# thêm repo
+echo '[elasticsearch-7.x]
+name=Elasticsearch repository for 7.x packages
+baseurl=https://artifacts.elastic.co/packages/7.x/yum
+gpgcheck=1
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+enabled=1
+autorefresh=1
+type=rpm-md
+' > /etc/yum.repos.d/elasticsearch.repo
+# cài đặt
+yum install elasticsearch -y
+
+# kích hoạt dịch vụ
+systemctl enable elasticsearch.service
+systemctl start elasticsearch.service
+# Mở firewall cổng 9200 cho Es nếu cần
+firewall-cmd --permanent --new-zone=dichvu
+firewall-cmd --zone=dichvu --add-port=9200/tcp --permanent
+firewall-cmd --zone=dichvu --add-port=9300/tcp --permanent
+firewall-cmd --reload
+#add source cho máy cần sử dụng sẽ là máy chứa kibana, logtash và máy sử dụng kibana như theo hướng dẫn này thì đang chỉ làm trên 1 máy duy nhất vậy nên không cần add source ở đây
+firewall-cmd --zone=dichvu --add-source='192.168.1.2' --permanent
+firewall-cmd --reload
+
+# kiểm tra ES
+curl -XGET localhost:9200
+```
+
+# Tiếp theo tiến hành cài đặt kibana
+```php
+
+yum install kibana -y
+systemctl enable kibana
+
+# cấu hình truy cập được từ mọi IP
+echo 'server.host: 0.0.0.0' >> /etc/kibana/kibana.yml
+
+systemctl start kibana
+#Add source cho máy truy cập vào giao diện web của kibana
+firewall-cmd --zone=dichvu --add-source='192.168.1.2' --permanent
+firewall-cmd --zone=dichvu --add-port=5601/tcp --permanent
+firewall-cmd --reload
+
+#Sau đó truy cập vào trình duyệt với ip máy chứa kibana với cổng 5601 để kiểm tra
+#ví dụ: 192.168.1.14:5601 
+```
+# Cài đặt logtash
+```php
+yum install logstash -y
+#Phần này sẽ cấu hình để nó nhân đầu vào do Beats gửi đến cổng beats
+echo 'input {
+  beats {
+    host => "0.0.0.0"
+    port => 5044
+  }
+}' > /etc/logstash/conf.d/02-beats-input.conf
+
+#cấu hình sau khi Logstash nhận dữ liệu đầu vào từ Beats, nó xử lý rồi gửi đến Elasticsearch (localhost:9200)
+echo 'output {
+  elasticsearch {
+    hosts => ["localhost:9200"]
+    manage_template => false
+    index => "%{[@metadata][beat]}-%{[@metadata][version]}-%{+YYYY.MM.dd}"
+  }
+}' > /etc/logstash/conf.d/30-elasticsearch-output.conf
+
+#Ngoài ra nếu muốn lọc các log, định dạng lại các dòng log ở dạng dễ đọc, dễ hiểu hơn thì cấu hình định dạng lại cấu trúc system log, lấy theo hướng dẫn tại document của Logstash
+echo 'filter {
+  if [fileset][module] == "system" {
+    if [fileset][name] == "auth" {
+      grok {
+        match => { "message" => ["%{SYSLOGTIMESTAMP:[system][auth][timestamp]} %{SYSLOGHOST:[system][auth][hostname]} sshd(?:\[%{POSINT:[system][auth][pid]}\])?: %{DATA:[system][auth][ssh][event]} %{DATA:[system][auth][ssh][method]} for (invalid user )?%{DATA:[system][auth][user]} from %{IPORHOST:[system][auth][ssh][ip]} port %{NUMBER:[system][auth][ssh][port]} ssh2(: %{GREEDYDATA:[system][auth][ssh][signature]})?",
+                  "%{SYSLOGTIMESTAMP:[system][auth][timestamp]} %{SYSLOGHOST:[system][auth][hostname]} sshd(?:\[%{POSINT:[system][auth][pid]}\])?: %{DATA:[system][auth][ssh][event]} user %{DATA:[system][auth][user]} from %{IPORHOST:[system][auth][ssh][ip]}",
+                  "%{SYSLOGTIMESTAMP:[system][auth][timestamp]} %{SYSLOGHOST:[system][auth][hostname]} sshd(?:\[%{POSINT:[system][auth][pid]}\])?: Did not receive identification string from %{IPORHOST:[system][auth][ssh][dropped_ip]}",
+                  "%{SYSLOGTIMESTAMP:[system][auth][timestamp]} %{SYSLOGHOST:[system][auth][hostname]} sudo(?:\[%{POSINT:[system][auth][pid]}\])?: \s*%{DATA:[system][auth][user]} :( %{DATA:[system][auth][sudo][error]} ;)? TTY=%{DATA:[system][auth][sudo][tty]} ; PWD=%{DATA:[system][auth][sudo][pwd]} ; USER=%{DATA:[system][auth][sudo][user]} ; COMMAND=%{GREEDYDATA:[system][auth][sudo][command]}",
+                  "%{SYSLOGTIMESTAMP:[system][auth][timestamp]} %{SYSLOGHOST:[system][auth][hostname]} groupadd(?:\[%{POSINT:[system][auth][pid]}\])?: new group: name=%{DATA:system.auth.groupadd.name}, GID=%{NUMBER:system.auth.groupadd.gid}",
+                  "%{SYSLOGTIMESTAMP:[system][auth][timestamp]} %{SYSLOGHOST:[system][auth][hostname]} useradd(?:\[%{POSINT:[system][auth][pid]}\])?: new user: name=%{DATA:[system][auth][user][add][name]}, UID=%{NUMBER:[system][auth][user][add][uid]}, GID=%{NUMBER:[system][auth][user][add][gid]}, home=%{DATA:[system][auth][user][add][home]}, shell=%{DATA:[system][auth][user][add][shell]}$",
+                  "%{SYSLOGTIMESTAMP:[system][auth][timestamp]} %{SYSLOGHOST:[system][auth][hostname]} %{DATA:[system][auth][program]}(?:\[%{POSINT:[system][auth][pid]}\])?: %{GREEDYMULTILINE:[system][auth][message]}"] }
+        pattern_definitions => {
+          "GREEDYMULTILINE"=> "(.|\n)*"
+        }
+        remove_field => "message"
+      }
+      date {
+        match => [ "[system][auth][timestamp]", "MMM  d HH:mm:ss", "MMM dd HH:mm:ss" ]
+      }
+      geoip {
+        source => "[system][auth][ssh][ip]"
+        target => "[system][auth][ssh][geoip]"
+      }
+    }
+    else if [fileset][name] == "syslog" {
+      grok {
+        match => { "message" => ["%{SYSLOGTIMESTAMP:[system][syslog][timestamp]} %{SYSLOGHOST:[system][syslog][hostname]} %{DATA:[system][syslog][program]}(?:\[%{POSINT:[system][syslog][pid]}\])?: %{GREEDYMULTILINE:[system][syslog][message]}"] }
+        pattern_definitions => { "GREEDYMULTILINE" => "(.|\n)*" }
+        remove_field => "message"
+      }
+      date {
+        match => [ "[system][syslog][timestamp]", "MMM  d HH:mm:ss", "MMM dd HH:mm:ss" ]
+      }
+    }
+  }
+}
+' > /etc/logstash/conf.d/10-syslog-filter.conf
+
+#Kiểm tra
+sudo -u logstash /usr/share/logstash/bin/logstash --path.settings /etc/logstash -t
+
+#Nếu thấy xuất hiện config vallidation result: OK là đã thành công
+#Cấu hình tường lửa
+#Add source cho máy chứa filebeats như theo hướng dẫn này thì đang chỉ làm trên 1 máy duy nhất vậy nên không cần add source ở đây
+firewall-cmd --zone=dichvu --add-source='192.168.1.2' --permanent
+firewall-cmd --zone=dichvu --add-port=5044/tcp --permanent
+firewall-cmd --reload
+
+#Khởi động
+systemctl enable logstash
+systemctl start logstash
+```
+# Cài đặt Beats/Filebeat
+```php
+yum install filebeat -y
+
+#Truy cập vào file sau
+
+vi /etc/filebeat/filebeat.yml
+#Tìm đến đoạn sau và comment lại để filebeats ko gửi thẳng dữ liệu vào Elastic Search nữa
+...
+output.elasticsearch:
+  # Array of hosts to connect to.
+   hosts: ["localhost:9200"]
+...
+#Sửa thành
+...
+#output.elasticsearch:
+  # Array of hosts to connect to.
+  # hosts: ["localhost:9200"]
+...
+#Sau đó tìm đến đoạn sau và bỏ comment để filebeats gửi log đến logtash
+...
+#output.logstash:
+  # The Logstash hosts
+  #hosts: ["localhost:5044"]
+...
+#Sửa thành
+...
+output.logstash:
+  # The Logstash hosts
+  hosts: ["localhost:5044"]
+...
+
+#Truy cập vào file sau
+vi /etc/filebeat/filebeat.yml
+#Tìm đến dòng 21 và sửa lại thành như sau
+...
+- type: log
+
+  # Change to true to enable this prospector configuration.
+  enabled: true
+...
+#Truy cập vào file sau
+vi /etc/filebeat/filebeat.reference.yml
+#Tìm đến đoạn sau và sửa thành (Khoảng dòng 15)
+...
+- module: system
+  # Syslog
+  syslog:
+    enabled: true
+
+.....
+.....
+
+  # Authorization logs
+  auth:
+    enabled: true
+...
+
+#Khởi động các dịch vụ
+filebeat modules enable system
+filebeat modules enable apache
+filebeat modules enable mysql
+#Khời động filebeats
+systemctl enable filebeat
+systemctl start filebeat
+
+#Kiểm tra
+curl localhost:9200/_cat/indices?v
+curl localhost:9200/filebeat-7.13.2-2021.06.22-000001/_search?pretty
+filebeat setup --dashboards
+
+```
