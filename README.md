@@ -83,6 +83,8 @@ vi /etc/nginx/nginx.conf
 
 [13. Bài tập NFS server](https://github.com/ductai124/bao-cao-RM#13-b%C3%A0i-t%E1%BA%ADp-nfs-server)
 
+[14. Bài tập NFS server](https://github.com/ductai124/bao-cao-RM#13-thi%E1%BA%BFt-l%E1%BA%ADp-elastic-stack)
+
 []()
 ## 1.	Cài đặt nginx
 * Tắt SELinux đi đề phòng phát sinh lỗi
@@ -1806,7 +1808,7 @@ grep /mnt /proc/mounts
 
 
 ```
-## 13. Thiết lập Elastic Stack
+## 14. Thiết lập Elastic Stack
 * Elastic Stack bao gồm:
     * Elasticsearch - máy chủ lưu trữ và tìm kiếm dữ liệu
     * Logstash - thành phần xử lý dữ liệu, sau đó nó gửi dữ liệu nhận được cho Elasticsearch để lưu trữ
