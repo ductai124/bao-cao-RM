@@ -1814,8 +1814,11 @@ grep /mnt /proc/mounts
     * Logstash - thành phần xử lý dữ liệu, sau đó nó gửi dữ liệu nhận được cho Elasticsearch để lưu trữ
     * Kibana - ứng dụng nền web để tìm kiếm và xem trực quan các logs
     * Beats - gửi dữ liệu thu thập từ log của máy đến Logstash
-* Đây sẽ là hướng dẫn thiết lập Elastic Stack trên 1 máy duy nhất
-# Đầu tiên tiến hành cài đặt Elastic Search
+* Chuẩn bị 2 máy 1 máy chứa 
+  * Elasticsearch, Logstash, Kibana với ip là 192.168.1.11 
+  * 1 máy chứa Beats với ip là 192.168.1.12
+
+# Đầu tiên tiến hành cài đặt Elastic Search tại máy server
 ```php
 #Update và cài đặt java
 yum update -y
@@ -1846,6 +1849,7 @@ firewall-cmd --zone=dichvu --add-port=9300/tcp --permanent
 firewall-cmd --reload
 #add source cho máy cần sử dụng sẽ là máy chứa kibana, logtash và máy sử dụng kibana như theo hướng dẫn này thì đang chỉ làm trên 1 máy duy nhất vậy nên không cần add source ở đây
 firewall-cmd --zone=dichvu --add-source='192.168.1.2' --permanent
+firewall-cmd --zone=dichvu --add-source='192.168.1.12' --permanent
 firewall-cmd --reload
 
 # kiểm tra ES
@@ -1864,6 +1868,7 @@ echo 'server.host: 0.0.0.0' >> /etc/kibana/kibana.yml
 systemctl start kibana
 #Add source cho máy truy cập vào giao diện web của kibana
 firewall-cmd --zone=dichvu --add-source='192.168.1.2' --permanent
+firewall-cmd --zone=dichvu --add-source='192.168.1.12' --permanent
 firewall-cmd --zone=dichvu --add-port=5601/tcp --permanent
 firewall-cmd --reload
 
@@ -1936,6 +1941,7 @@ sudo -u logstash /usr/share/logstash/bin/logstash --path.settings /etc/logstash 
 #Cấu hình tường lửa
 #Add source cho máy chứa filebeats như theo hướng dẫn này thì đang chỉ làm trên 1 máy duy nhất vậy nên không cần add source ở đây
 firewall-cmd --zone=dichvu --add-source='192.168.1.2' --permanent
+firewall-cmd --zone=dichvu --add-source='192.168.1.12' --permanent
 firewall-cmd --zone=dichvu --add-port=5044/tcp --permanent
 firewall-cmd --reload
 
@@ -1943,7 +1949,7 @@ firewall-cmd --reload
 systemctl enable logstash
 systemctl start logstash
 ```
-# Cài đặt Beats/Filebeat
+# Cài đặt Beats/Filebeat trên máy còn lại
 ```php
 yum install filebeat -y
 
@@ -2001,6 +2007,13 @@ vi /etc/filebeat/filebeat.reference.yml
     enabled: true
 ...
 
+#Tìm đến dòng sau và sửa thành
+...
+setup.kibana:
+...
+  host: "192.168.1.11:5601"
+...
+
 #Khởi động các dịch vụ
 filebeat modules enable system
 filebeat modules enable apache
@@ -2008,6 +2021,8 @@ filebeat modules enable mysql
 #Khời động filebeats
 systemctl enable filebeat
 systemctl start filebeat
+#Setup dashboards
+filebeat setup --dashboards
 
 #Kiểm tra
 curl localhost:9200/_cat/indices?v
