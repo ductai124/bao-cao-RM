@@ -1818,7 +1818,7 @@ grep /mnt /proc/mounts
   * Elasticsearch, Logstash, Kibana với ip là 192.168.1.11 
   * 1 máy chứa Beats với ip là 192.168.1.12
 
-# Đầu tiên tiến hành cài đặt Elastic Search tại máy server
+# Đầu tiên tiến hành cài đặt Elastic Search trên máy server (192.168.1.12)
 ```php
 #Update và cài đặt java
 yum update -y
@@ -1856,7 +1856,7 @@ firewall-cmd --reload
 curl -XGET localhost:9200
 ```
 
-# Tiếp theo tiến hành cài đặt kibana
+# Tiếp theo tiến hành cài đặt kibana trên máy server (192.168.1.12)
 ```php
 
 yum install kibana -y
@@ -1875,7 +1875,7 @@ firewall-cmd --reload
 #Sau đó truy cập vào trình duyệt với ip máy chứa kibana với cổng 5601 để kiểm tra
 #ví dụ: 192.168.1.14:5601 
 ```
-# Cài đặt logtash
+# Cài đặt logtash trên máy server (192.168.1.12)
 ```php
 yum install logstash -y
 #Phần này sẽ cấu hình để nó nhân đầu vào do Beats gửi đến cổng beats
@@ -1949,7 +1949,7 @@ firewall-cmd --reload
 systemctl enable logstash
 systemctl start logstash
 ```
-# Cài đặt Beats/Filebeat trên máy còn lại
+# Cài đặt Beats/Filebeat trên máy còn lại (192.168.1.12)
 ```php
 yum install filebeat -y
 
