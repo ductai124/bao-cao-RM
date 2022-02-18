@@ -2014,6 +2014,20 @@ setup.kibana:
   host: "192.168.1.11:5601"
 ...
 
+#Tìm đến dòng sau và sửa thành như sau để có thể lấy được các file log cần thiết 
+filebeat.inputs:
+...
+- type: filestream
+  # Change to true to enable this input configuration.
+  enabled: enable
+  # Paths that should be crawled and fetched. Glob based paths.
+  paths:
+    - /var/log/*.log
+    - /var/log/*/*.log
+...
+
+
+
 #Khởi động các dịch vụ
 filebeat modules enable system
 filebeat modules enable apache
