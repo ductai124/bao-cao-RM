@@ -2038,9 +2038,18 @@ systemctl start filebeat
 #Setup dashboards
 filebeat setup --dashboards
 
-#Kiểm tra
-curl localhost:9200/_cat/indices?v
-curl localhost:9200/filebeat-7.13.2-2021.06.22-000001/_search?pretty
-filebeat setup --dashboards
-
+#Thiết lập Slow Query Log Overview cho mariadb
+#Đầu tiên tạo 1 file mariadb-slow.log tại thư mục /var/log
+#Phân quyền cho mariadb-slow.log
+chown mysql:mysql /var/log/maria-slow.log
+#Truy cập vào database
+SET GLOBAL slow_query_log=1;
+SET GLOBAL slow_query_log_file='/var/log/maria-slow.log';
+SET GLOBAL log_output='FILE';
+SET GLOBAL long_query_time=1.0;
+SET GLOBAL general_log = 1;
+## Kiểm tra
+SELECT SLEEP(10);
+SELECT * FROM mysql.slow_log\G
+SET GLOBAL slow_query_log_file='/var/log/maria-slow.log';
 ```
