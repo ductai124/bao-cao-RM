@@ -83,7 +83,7 @@ vi /etc/nginx/nginx.conf
 
 [13. Bài tập NFS server](https://github.com/ductai124/bao-cao-RM#13-b%C3%A0i-t%E1%BA%ADp-nfs-server)
 
-[14. Bài tập NFS server](https://github.com/ductai124/bao-cao-RM#14-thi%E1%BA%BFt-l%E1%BA%ADp-elastic-stack)
+[14. Thiết lập Elastic Stack(ELK)](https://github.com/ductai124/bao-cao-RM#14-thi%E1%BA%BFt-l%E1%BA%ADp-elastic-stack)
 
 []()
 ## 1.	Cài đặt nginx
@@ -1808,7 +1808,7 @@ grep /mnt /proc/mounts
 
 
 ```
-## 14. Thiết lập Elastic Stack
+## 14. Thiết lập Elastic Stack(ELK)
 * Elastic Stack bao gồm:
     * Elasticsearch - máy chủ lưu trữ và tìm kiếm dữ liệu
     * Logstash - thành phần xử lý dữ liệu, sau đó nó gửi dữ liệu nhận được cho Elasticsearch để lưu trữ
@@ -2052,4 +2052,5 @@ SET GLOBAL general_log = 1;
 SELECT SLEEP(10);
 SELECT * FROM mysql.slow_log\G
 SET GLOBAL slow_query_log_file='/var/log/maria-slow.log';
+
 ```
