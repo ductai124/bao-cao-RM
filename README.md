@@ -56,6 +56,9 @@ vi /etc/nginx/nginx.conf
 ***
 # TÀI LIỆU HƯỚNG CÁC BƯỚC ĐẦU TIÊN CÀI ĐẶT VÀ CẤU HÌNH WEB SERVER BẰNG NGINX ROCKY LINUX TRÊN MÁY ẢO
 ***
+# Mô hình cài đặt
+
+![](https://user-images.githubusercontent.com/52046920/199540912-53167993-ea71-470b-9a99-abfb48596a65.jpg)
 # Mục lục
 [1.	Cài đặt nginx](https://github.com/ductai124/bao-cao-RM#1c%C3%A0i-%C4%91%E1%BA%B7t-nginx)
 
