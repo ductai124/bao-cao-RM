@@ -236,7 +236,7 @@ server {
 ```php
 yum module -y enable php:7.4
 yum module -y install php:7.4/common
-Restart nginx và php-fpm
+#Restart nginx và php-fpm
 systemctl restart nginx
 systemctl status php-fpm
 ```
