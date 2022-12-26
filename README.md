@@ -1119,8 +1119,6 @@ Email Address []:webmaster@vinades.vn
 openssl req -newkey rsa:2048 -days 365000 \
       -nodes -keyout server-key.pem -out server-req.pem
 
-#Tạo chứng chỉ
-openssl rsa -in server-key.pem -out server-key.pem
 
 #Nhập thông tin
 #Lưu ý Common Name không để trùng nhau nếu không sẽ dẫn đến lỗi
@@ -1136,6 +1134,9 @@ Please enter the following 'extra' attributes
 to be sent with your certificate request
 A challenge password []:
 An optional company name []:
+
+#Tạo chứng chỉ
+openssl rsa -in server-key.pem -out server-key.pem
 
 #Ký chứng chỉ
 openssl x509 -req -in server-req.pem -days 365000 \
