@@ -1072,10 +1072,25 @@ ls
 #sử dụng crontab để thiết lập 1 tiếng chạy tools 1 lần
 crontab -e
 
+
+#Khai báo 1 công việc thực hiện auto theo chu kỳ trong crontab
+# 	Example of job definition:
+# 	.---------------- minute (0 - 59)
+# 	|  .------------- hour (0 - 23)
+# 	|  |  .---------- day of month (1 - 31)
+# 	|  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+# 	|  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+# 	|  |  |  |  |
+# 	*  *  *  *  * user-name  command to be executed
+
 #Backup sau mỗi giờ
 0 * * * * bash /root/mysql-backup.sh
 
-#Hoặc Backup 2 tiếng 1 lần
+#Hoặc Backup 2 tiếng 1 lần thêm dấu / sau mốc thời gian giờ, phút, ... và thời gian chuẩn xác 
+#nếu muốn cứ mỗi sau 10 phút thì 
+# 	*/10 * * * * 
+#Muốn cứ sau 5 tiếng thì thực hiện 1 hành động thì cấu hình như sau
+# 	* */5 * * *
 0 */2 * * * bash /root/mysql-backup.sh
 #sau đó lưu lại và thoát
 #Kiểm tra crontab đang hoạt động
