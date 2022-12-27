@@ -1056,7 +1056,7 @@ if [ ! -z ${DB_BACKUP_PATH} ]; then
 fi
 
 #Xóa cách 2
-#Tìm các file đã cũ hơn 8 tiếng và xóa nó đi
+#Tìm các file đã cũ hơn 8 tiếng và xóa nó đi 480 ở đây là 480 phút
 find /home/mariadb_backup -name folder_* -cmin +480 | xargs /bin/rm -rf | xargs /bin/rm -f
 ### End of script ####
 
